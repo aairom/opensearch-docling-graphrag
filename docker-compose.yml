@@ -10,7 +10,6 @@ services:
       - bootstrap.memory_lock=false
       - "OPENSEARCH_JAVA_OPTS=-Xms256m -Xmx1g"
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Admin@123
-      - plugins.security.disabled=true
       - "DISABLE_INSTALL_DEMO_CONFIG=true"
       - "DISABLE_SECURITY_PLUGIN=true"
     deploy:
