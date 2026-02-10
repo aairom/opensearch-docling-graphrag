@@ -1,10 +1,9 @@
 # Document Processing
-docling==2.72.0
-docling-core==2.12.1
-pypdf==5.1.0
-python-docx==1.1.2
-python-pptx==1.0.2
-pillow==11.0.0
+docling>=2.70.0
+pypdf>=5.0.0
+python-docx>=1.1.0
+python-pptx>=1.0.0
+pillow>=10.0.0
 
 # OpenSearch
 opensearch-py==2.7.1
