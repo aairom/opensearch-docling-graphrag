@@ -198,3 +198,37 @@ rm -rf output/* logs/*
 
 # Start with Docker (recommended)
 docker-compose up -d
+
+## Podman Support
+
+### Using Podman Instead of Docker
+
+The application now supports both Docker and Podman. If you have Podman Desktop running:
+
+**Ensure Podman Machine is Started:**
+```bash
+# Check if podman machine is running
+podman machine list
+
+# Start podman machine if not running
+podman machine start
+
+# Verify podman is working
+podman info
+```
+
+**Install podman-compose (if needed):**
+```bash
+pip install podman-compose
+```
+
+**Run the Application:**
+```bash
+# The start.sh script will automatically detect Podman
+./start.sh
+
+# Or use podman-compose directly
+podman-compose up -d
+```
+
+**Note:** The scripts (start.sh and stop.sh) automatically detect whether you're using Docker or Podman and use the appropriate commands.
