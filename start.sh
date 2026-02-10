@@ -123,10 +123,49 @@ if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
 fi
 echo -e "${GREEN}✅ Ollama is ready${NC}"
 
-# Get the host IP for display
-HOST_IP=$(hostname -I | awk '{print $1}')
-if [ -z "$HOST_IP" ]; then
-    HOST_IP="localhost"
+# Get the host IP for display (macOS compatible)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS
+    HOST_IP=$(ipconfig getifaddr en0 2>/dev/null || echo "localhost")
+else
+    # Linux
+    HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
+fi
+
+# Check if port 8501 is already in use
+if lsof -Pi :8501 -sTCP:LISTEN -t >/dev/null 2>&1; then
+    echo -e "${YELLOW}⚠️  Port 8501 is already in use. Checking if it's our app...${NC}"
+    
+    # Check if it's the Docker container
+    if podman ps --format "{{.Names}}" | grep -q "docling-app"; then
+        echo -e "${GREEN}✅ Application is already running in Docker container!${NC}"
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "${GREEN}🎉 Application is running!${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo -e "📱 Access the application at:"
+        echo -e "   ${GREEN}Local:${NC}    http://localhost:8501"
+        echo -e "   ${GREEN}Network:${NC}  http://${HOST_IP}:8501"
+        echo ""
+        echo -e "📊 Service URLs:"
+        echo -e "   ${GREEN}OpenSearch:${NC} http://localhost:9200"
+        echo -e "   ${GREEN}Neo4j:${NC}      http://localhost:7474"
+        echo -e "   ${GREEN}Ollama:${NC}     http://localhost:11434"
+        echo ""
+        echo -e "🔧 Container Runtime: ${GREEN}$CONTAINER_CMD${NC}"
+        echo ""
+        echo -e "📝 Logs:"
+        echo -e "   ${GREEN}Container:${NC}   podman logs -f docling-app"
+        echo ""
+        echo -e "🛑 To stop the application, run: ${YELLOW}./stop.sh${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        exit 0
+    else
+        echo -e "${RED}❌ Port 8501 is in use by another process${NC}"
+        echo "   Kill it with: lsof -ti:8501 | xargs kill -9"
+        exit 1
+    fi
 fi
 
 # Start Streamlit in background
