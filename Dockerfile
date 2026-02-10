@@ -17,11 +17,11 @@ RUN apt-get update && apt-get install -y \
     g++ \
     curl \
     git \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
-    libxrender-dev \
+    libxrender1 \
     libgomp1 \
     poppler-utils \
     tesseract-ocr \
