@@ -35,6 +35,40 @@ class Neo4jClient:
         self.driver.close()
         logger.info("Neo4j connection closed")
     
+    def _flatten_metadata(self, metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Flatten nested metadata dictionaries for Neo4j compatibility.
+        Neo4j only accepts primitive types and arrays as property values.
+        
+        Args:
+            metadata: Metadata dictionary (possibly nested)
+            
+        Returns:
+            Flattened metadata dictionary
+        """
+        if not metadata:
+            return {}
+        
+        flattened = {}
+        for key, value in metadata.items():
+            if isinstance(value, dict):
+                # Flatten nested dict with dot notation
+                for nested_key, nested_value in value.items():
+                    flat_key = f"{key}_{nested_key}"
+                    if isinstance(nested_value, (str, int, float, bool)):
+                        flattened[flat_key] = nested_value
+                    else:
+                        flattened[flat_key] = str(nested_value)
+            elif isinstance(value, (str, int, float, bool)):
+                flattened[key] = value
+            elif isinstance(value, list):
+                # Convert list elements to strings if not primitive
+                flattened[key] = [str(v) if not isinstance(v, (str, int, float, bool)) else v for v in value]
+            else:
+                flattened[key] = str(value)
+        
+        return flattened
+    
     def create_document_node(
         self,
         document_id: str,
@@ -54,12 +88,15 @@ class Neo4jClient:
         Returns:
             Created node information
         """
+        # Flatten metadata to avoid nested dict issues
+        flat_metadata = self._flatten_metadata(metadata)
+        
         with self.driver.session() as session:
             query = """
             MERGE (d:Document {id: $document_id})
             SET d.file_name = $file_name,
                 d.file_path = $file_path,
-                d.metadata = $metadata,
+                d += $metadata,
                 d.created_at = datetime()
             RETURN d
             """
@@ -68,7 +105,7 @@ class Neo4jClient:
                 document_id=document_id,
                 file_name=file_name,
                 file_path=file_path,
-                metadata=metadata or {}
+                metadata=flat_metadata
             )
             record = result.single()
             logger.info(f"Created document node: {document_id}")
@@ -93,12 +130,15 @@ class Neo4jClient:
         Returns:
             Created node information
         """
+        # Flatten metadata to avoid nested dict issues
+        flat_metadata = self._flatten_metadata(metadata)
+        
         with self.driver.session() as session:
             query = """
             MATCH (d:Document {id: $document_id})
             CREATE (c:Chunk {id: $chunk_id, document_id: $document_id})
             SET c.text = $text,
-                c.metadata = $metadata,
+                c += $metadata,
                 c.created_at = datetime()
             CREATE (d)-[:HAS_CHUNK]->(c)
             RETURN c
@@ -108,7 +148,7 @@ class Neo4jClient:
                 document_id=document_id,
                 chunk_id=chunk_id,
                 text=text,
-                metadata=metadata or {}
+                metadata=flat_metadata
             )
             record = result.single()
             return dict(record["c"])
