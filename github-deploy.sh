@@ -51,16 +51,20 @@ if [[ -n $(git status -s) ]]; then
     echo "📦 Adding files..."
     git add .
     
-    # Show what will be committed
-    echo ""
-    echo -e "${BLUE}Files to be committed:${NC}"
-    git diff --cached --name-status
-    
-    # Commit
-    echo ""
-    echo "💾 Committing changes..."
-    git commit -m "$COMMIT_MSG"
-    echo -e "${GREEN}✅ Changes committed${NC}"
+    # Show what will be committed (limited output)
+        echo ""
+        echo -e "${BLUE}Files to be committed:${NC}"
+        git diff --cached --name-status | head -20
+        FILE_COUNT=$(git diff --cached --name-status | wc -l)
+        if [ $FILE_COUNT -gt 20 ]; then
+            echo "... and $((FILE_COUNT - 20)) more files"
+        fi
+        
+        # Commit
+        echo ""
+        echo "💾 Committing changes..."
+        git commit -m "$COMMIT_MSG"
+        echo -e "${GREEN}✅ Changes committed${NC}"
 else
     echo ""
     echo -e "${GREEN}✅ No uncommitted changes${NC}"
