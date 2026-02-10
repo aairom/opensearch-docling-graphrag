@@ -202,12 +202,23 @@ class Neo4jClient:
             properties: Relationship properties
         """
         with self.driver.session() as session:
-            # Try to match by id first, then by name (for entities)
+            # Convert IDs to appropriate types
+            # Try to convert to int for chunk IDs, keep as string for entity names
+            def convert_id(id_val):
+                try:
+                    return int(id_val)
+                except (ValueError, TypeError):
+                    return id_val
+            
+            from_id_int = convert_id(from_node_id)
+            to_id_int = convert_id(to_node_id)
+            
+            # Try to match by id (as int or string) or by name (for entities)
             query = f"""
             MATCH (a)
-            WHERE a.id = $from_id OR a.name = $from_id
+            WHERE a.id = $from_id OR a.id = $from_id_int OR a.name = $from_id
             MATCH (b)
-            WHERE b.id = $to_id OR b.name = $to_id
+            WHERE b.id = $to_id OR b.id = $to_id_int OR b.name = $to_id
             MERGE (a)-[r:{relationship_type}]->(b)
             SET r += $properties
             RETURN r
@@ -215,11 +226,14 @@ class Neo4jClient:
             result = session.run(
                 query,
                 from_id=from_node_id,
+                from_id_int=from_id_int,
                 to_id=to_node_id,
+                to_id_int=to_id_int,
                 properties=properties or {}
             )
             # Check if relationship was created
-            if not result.single():
+            record = result.single()
+            if not record:
                 logger.warning(f"Could not create relationship {relationship_type} from {from_node_id} to {to_node_id}")
     
     def find_related_documents(
