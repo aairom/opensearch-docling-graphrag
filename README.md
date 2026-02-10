@@ -11,6 +11,7 @@ A comprehensive document processing and Retrieval-Augmented Generation (RAG) sys
 - **📊 Batch Processing**: Process multiple documents efficiently
 - **🎨 Modern UI**: User-friendly Streamlit interface
 - **🐳 Containerized**: Docker and Kubernetes ready
+- **⚡ Background Job Queue**: Async document processing with progress tracking
 - **⏱️ Timestamped Outputs**: All results saved with timestamps
 
 ## 🏗️ Architecture
