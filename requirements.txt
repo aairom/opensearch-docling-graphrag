@@ -1,0 +1,42 @@
+# Document Processing
+docling==2.9.1
+docling-core==2.5.2
+pypdf==5.1.0
+python-docx==1.1.2
+python-pptx==1.0.2
+pillow==11.0.0
+
+# OpenSearch
+opensearch-py==2.7.1
+
+# Neo4j
+neo4j==5.26.0
+
+# Ollama
+ollama==0.4.4
+
+# Web Framework
+streamlit==1.40.2
+streamlit-option-menu==0.4.0
+
+# Data Processing
+pandas==2.2.3
+numpy==2.2.1
+
+# Utilities
+python-dotenv==1.0.1
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# Logging
+loguru==0.7.3
+
+# Date/Time
+python-dateutil==2.9.0.post0
+
+# Graph Processing
+networkx==3.4.2
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: docling-rag-config
+  namespace: docling-rag
+data:
+  OPENSEARCH_HOST: "opensearch-service"
+  OPENSEARCH_PORT: "9200"
+  OPENSEARCH_INDEX: "documents"
+  NEO4J_URI: "bolt://neo4j-service:7687"
+  APP_HOST: "0.0.0.0"
+  APP_PORT: "8501"
+  CHUNK_SIZE: "512"
+  CHUNK_OVERLAP: "50"
+  BATCH_SIZE: "10"
+
+# Made with Bob
