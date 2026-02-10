@@ -9,9 +9,6 @@ from datetime import datetime
 from loguru import logger
 
 from docling.document_converter import DocumentConverter
-from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import PdfPipelineOptions
-from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 
 
 class DoclingProcessor:
@@ -19,26 +16,14 @@ class DoclingProcessor:
     
     def __init__(self):
         """Initialize the Docling processor."""
-        # Configure pipeline options
-        pipeline_options = PdfPipelineOptions()
-        pipeline_options.do_ocr = True
-        pipeline_options.do_table_structure = True
-        
-        # Initialize document converter
-        self.converter = DocumentConverter(
-            allowed_formats=[
-                InputFormat.PDF,
-                InputFormat.DOCX,
-                InputFormat.PPTX,
-                InputFormat.HTML,
-                InputFormat.IMAGE,
-                InputFormat.ASCIIDOC,
-                InputFormat.MD,
-            ],
-            pdf_backend=PyPdfiumDocumentBackend,
-            pipeline_options=pipeline_options,
-        )
-        logger.info("Docling processor initialized")
+        try:
+            # Initialize document converter with default settings
+            # The latest Docling version uses simplified initialization
+            self.converter = DocumentConverter()
+            logger.info("Docling processor initialized successfully")
+        except Exception as e:
+            logger.error(f"Error initializing Docling processor: {str(e)}")
+            raise
     
     def process_document(self, file_path: str) -> Dict[str, Any]:
         """

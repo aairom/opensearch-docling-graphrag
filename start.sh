@@ -97,7 +97,7 @@ if [ -f "docker-compose.yml" ]; then
     
     # Check OpenSearch
     echo "🔍 Checking OpenSearch..."
-    until curl -s -u admin:admin http://localhost:9200 > /dev/null 2>&1; do
+    until curl -s http://localhost:9200 > /dev/null 2>&1; do
         echo "   Waiting for OpenSearch..."
         sleep 2
     done

@@ -7,14 +7,11 @@ services:
     container_name: opensearch-docling
     environment:
       - discovery.type=single-node
-      - bootstrap.memory_lock=true
+      - bootstrap.memory_lock=false
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Admin@123
-      - plugins.security.disabled=false
+      - plugins.security.disabled=true
     ulimits:
-      memlock:
-        soft: -1
-        hard: -1
       nofile:
         soft: 65536
         hard: 65536
@@ -26,7 +23,7 @@ services:
     networks:
       - docling-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -k -u admin:Admin@123 https://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -38,9 +35,7 @@ services:
     ports:
       - "5601:5601"
     environment:
-      - 'OPENSEARCH_HOSTS=["https://opensearch:9200"]'
-      - OPENSEARCH_USERNAME=admin
-      - OPENSEARCH_PASSWORD=Admin@123
+      - 'OPENSEARCH_HOSTS=["http://opensearch:9200"]'
     networks:
       - docling-network
     depends_on:
