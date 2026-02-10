@@ -23,7 +23,7 @@ graph TB
     
     subgraph "Document Processing"
         Docling[Docling Processor]
-        Input[Input Documents]
+        InputDocs[Input Documents]
     end
     
     subgraph "Storage & Retrieval"
@@ -35,14 +35,14 @@ graph TB
         Ollama[Ollama<br/>LLM & Embeddings]
     end
     
-    subgraph "Output"
-        Output[Timestamped Results]
+    subgraph "Results"
+        OutputFiles[Timestamped Results]
     end
     
-    Input --> Docling
+    InputDocs --> Docling
     Docling --> OS
     Docling --> Neo4j
-    Docling --> Output
+    Docling --> OutputFiles
     
     UI --> Docling
     UI --> OS
@@ -57,7 +57,7 @@ graph TB
     style OS fill:#f3e5f5
     style Neo4j fill:#e8f5e9
     style Ollama fill:#fce4ec
-    style Output fill:#fff9c4
+    style OutputFiles fill:#fff9c4
 ```
 
 ## 📋 Prerequisites
