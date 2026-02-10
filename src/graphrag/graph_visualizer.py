@@ -121,10 +121,13 @@ class GraphVisualizer:
                             # Get node title (hover text)
                             title = self._get_node_title(node, label)
                             
+                            # Get node label
+                            node_label = self._get_node_label(node, label)
+                            
                             # Add node
                             net.add_node(
                                 node_id,
-                                label=node.get('name', node.get('file_name', f"{label}_{node_id}")),
+                                label=node_label,
                                 title=title,
                                 color=color,
                                 size=size,
@@ -234,10 +237,12 @@ class GraphVisualizer:
                     # Add chunk node
                     if record['c'] and str(record['c'].id) not in nodes_added:
                         chunk = record['c']
+                        # Get chunk label (text preview)
+                        chunk_label = self._get_node_label(chunk, "Chunk")
                         net.add_node(
                             str(chunk.id),
-                            label=f"Chunk {chunk.get('id', '')}",
-                            title=chunk.get('text', '')[:100] + "...",
+                            label=chunk_label,
+                            title=chunk.get('text', '')[:200] + "...",
                             color="#2ecc71",
                             size=15,
                             shape="dot"
@@ -322,6 +327,44 @@ class GraphVisualizer:
             title_parts.append(f"Text: {text}")
         
         return "<br>".join(title_parts)
+    
+    def _get_node_label(self, node, label: str) -> str:
+        """
+        Get appropriate label for a node.
+        
+        Args:
+            node: Neo4j node
+            label: Node label/type
+            
+        Returns:
+            Label string for display
+        """
+        # For entities, use name
+        if label == "Entity" or "Entity" in str(node.labels):
+            return node.get('name', f"Entity_{node.id}")
+        
+        # For documents, use file_name
+        if label == "Document":
+            return node.get('file_name', f"Document_{node.id}")
+        
+        # For chunks, show preview of text
+        if label == "Chunk":
+            text = node.get('text', '')
+            if text:
+                # Get first 50 characters, clean up
+                preview = text.strip()[:50]
+                # Remove newlines and extra spaces
+                preview = ' '.join(preview.split())
+                # Add ellipsis if truncated
+                if len(text) > 50:
+                    preview += "..."
+                return preview
+            else:
+                chunk_id = node.get('id', node.id)
+                return f"Chunk {chunk_id}"
+        
+        # Default: use name, file_name, or label with ID
+        return node.get('name', node.get('file_name', f"{label}_{node.id}"))
     
     def render_graph(self, html: str):
         """
