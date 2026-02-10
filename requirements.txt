@@ -36,6 +36,9 @@ python-dateutil==2.9.0.post0
 # Graph Processing
 networkx==3.4.2
 
+# Graph Visualization
+pyvis==0.3.2
+
 # Testing
 pytest==8.3.4
 pytest-asyncio==0.24.0

@@ -18,7 +18,7 @@ logger.add("logs/app_{time}.log", rotation="1 day", retention="7 days", level="D
 # Import application modules
 from src.processors import DoclingProcessor
 from src.rag import OpenSearchClient, OllamaClient
-from src.graphrag import Neo4jClient, GraphBuilder
+from src.graphrag import Neo4jClient, GraphBuilder, GraphVisualizer
 from config.settings import settings
 
 # Page configuration
@@ -40,6 +40,8 @@ if 'neo4j_client' not in st.session_state:
     st.session_state.neo4j_client = None
 if 'graph_builder' not in st.session_state:
     st.session_state.graph_builder = None
+if 'graph_visualizer' not in st.session_state:
+    st.session_state.graph_visualizer = None
 if 'initialized' not in st.session_state:
     st.session_state.initialized = False
 
@@ -54,6 +56,7 @@ def initialize_clients():
                 st.session_state.ollama_client = OllamaClient()
                 st.session_state.neo4j_client = Neo4jClient()
                 st.session_state.graph_builder = GraphBuilder(st.session_state.neo4j_client)
+                st.session_state.graph_visualizer = GraphVisualizer(st.session_state.neo4j_client)
                 st.session_state.initialized = True
                 st.success("✅ All clients initialized successfully!")
                 logger.info("All clients initialized")
@@ -297,16 +300,17 @@ def main():
                 results = process_batch_files()
                 
                 # Display results
-                st.subheader("Processing Results")
-                success_count = sum(1 for r in results if r['status'] == 'success')
-                st.metric("Successfully Processed", f"{success_count}/{len(results)}")
-                
-                # Show details
-                for result in results:
-                    if result['status'] == 'success':
-                        st.success(f"✅ {result['file']} - {result['chunks']} chunks")
-                    else:
-                        st.error(f"❌ {result['file']} - {result['error']}")
+                if results:
+                    st.subheader("Processing Results")
+                    success_count = sum(1 for r in results if r['status'] == 'success')
+                    st.metric("Successfully Processed", f"{success_count}/{len(results)}")
+                    
+                    # Show details
+                    for result in results:
+                        if result['status'] == 'success':
+                            st.success(f"✅ {result['file']} - {result['chunks']} chunks")
+                        else:
+                            st.error(f"❌ {result['file']} - {result['error']}")
             else:
                 st.warning("No files to process")
     
@@ -354,27 +358,230 @@ def main():
             st.warning("Please initialize the system first")
             return
         
-        # Graph statistics
-        st.subheader("Graph Statistics")
-        stats = st.session_state.graph_builder.get_graph_summary()
+        # Tabs for different views
+        viz_tab, search_tab, stats_tab = st.tabs(["📊 Visualize", "🔍 Search", "📈 Statistics"])
         
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Documents", stats.get('total_documents', 0))
-        col2.metric("Chunks", stats.get('total_chunks', 0))
-        col3.metric("Entities", stats.get('total_entities', 0))
-        col4.metric("Relationships", stats.get('total_relationships', 0))
-        
-        # Entity search
-        st.subheader("Find Entity Connections")
-        entity_name = st.text_input("Enter entity name:")
-        
-        if entity_name and st.button("Find Connections"):
-            with st.spinner("Searching graph..."):
-                connections = st.session_state.graph_builder.find_connections(entity_name)
+        with viz_tab:
+            st.subheader("Interactive Graph Visualization")
+            
+            # Visualization options
+            viz_type = st.radio(
+                "Select visualization type:",
+                ["Entity Graph", "Document Structure", "Full Graph"],
+                horizontal=True
+            )
+            
+            if viz_type == "Entity Graph":
+                st.markdown("**Visualize an entity and its connections**")
                 
-                st.write(f"Found {connections['connection_count']} related documents:")
-                for doc in connections['related_documents']:
-                    st.write(f"  • {doc['file_name']} (distance: {doc['distance']})")
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    entity_name = st.text_input(
+                        "Enter entity name:",
+                        placeholder="e.g., Bob, Python, AI",
+                        key="entity_viz"
+                    )
+                with col2:
+                    max_depth = st.number_input("Max depth:", min_value=1, max_value=5, value=2)
+                
+                if st.button("🎨 Visualize Entity", type="primary"):
+                    if entity_name:
+                        try:
+                            with st.spinner(f"Generating graph for '{entity_name}'..."):
+                                html = st.session_state.graph_visualizer.visualize_entity_graph(
+                                    entity_name=entity_name,
+                                    max_depth=max_depth,
+                                    max_nodes=50
+                                )
+                                st.session_state.graph_visualizer.render_graph(html)
+                                
+                                st.success(f"✅ Graph generated for '{entity_name}'")
+                                st.info("💡 **Tip:** Click and drag nodes, scroll to zoom, hover for details")
+                                
+                        except Exception as e:
+                            st.error(f"❌ Error: {str(e)}")
+                            st.info("💡 Try searching for a different entity or check if documents have been processed")
+                    else:
+                        st.warning("⚠️ Please enter an entity name")
+            
+            elif viz_type == "Document Structure":
+                st.markdown("**Visualize document structure with chunks and entities**")
+                
+                # Get list of documents
+                try:
+                    with st.session_state.neo4j_client.driver.session() as session:
+                        result = session.run("MATCH (d:Document) RETURN d.id as id, d.file_name as name")
+                        documents = [(r['id'], r['name']) for r in result]
+                    
+                    if documents:
+                        doc_options = ["All Documents"] + [f"{name} ({id[:8]}...)" for id, name in documents]
+                        selected_doc = st.selectbox("Select document:", doc_options)
+                        
+                        if st.button("🎨 Visualize Document", type="primary"):
+                            try:
+                                with st.spinner("Generating document graph..."):
+                                    if selected_doc == "All Documents":
+                                        html = st.session_state.graph_visualizer.visualize_document_graph(
+                                            document_id=None,
+                                            max_nodes=100
+                                        )
+                                    else:
+                                        # Extract document ID from selection
+                                        doc_id = [id for id, name in documents if name in selected_doc][0]
+                                        html = st.session_state.graph_visualizer.visualize_document_graph(
+                                            document_id=doc_id,
+                                            max_nodes=100
+                                        )
+                                    
+                                    st.session_state.graph_visualizer.render_graph(html)
+                                    st.success("✅ Document graph generated")
+                                    
+                                    # Legend
+                                    st.markdown("---")
+                                    st.markdown("**Legend:**")
+                                    col1, col2, col3 = st.columns(3)
+                                    with col1:
+                                        st.markdown("🔵 **Blue Box** = Document")
+                                    with col2:
+                                        st.markdown("🟢 **Green Dot** = Chunk")
+                                    with col3:
+                                        st.markdown("🔴 **Red Star** = Entity")
+                                    
+                            except Exception as e:
+                                st.error(f"❌ Error: {str(e)}")
+                    else:
+                        st.info("📄 No documents found. Upload and process documents first.")
+                        
+                except Exception as e:
+                    st.error(f"❌ Error fetching documents: {str(e)}")
+            
+            else:  # Full Graph
+                st.markdown("**Visualize the entire knowledge graph**")
+                st.warning("⚠️ This may be slow for large graphs")
+                
+                max_nodes = st.slider("Maximum nodes to display:", 10, 200, 50)
+                
+                if st.button("🎨 Visualize Full Graph", type="primary"):
+                    try:
+                        with st.spinner("Generating full graph..."):
+                            html = st.session_state.graph_visualizer.visualize_document_graph(
+                                document_id=None,
+                                max_nodes=max_nodes
+                            )
+                            st.session_state.graph_visualizer.render_graph(html)
+                            st.success("✅ Full graph generated")
+                            
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+        
+        with search_tab:
+            st.subheader("🔍 Search Entities")
+            
+            entity_name = st.text_input("Search for entity:", key="search_entity")
+            
+            if st.button("Search", key="search_btn"):
+                if entity_name:
+                    try:
+                        # Search for entity
+                        with st.session_state.neo4j_client.driver.session() as session:
+                            result = session.run("""
+                                MATCH (e:Entity)
+                                WHERE toLower(e.name) CONTAINS toLower($name)
+                                RETURN e.name as name, id(e) as id
+                                LIMIT 20
+                            """, name=entity_name)
+                            
+                            entities = list(result)
+                            
+                            if entities:
+                                st.success(f"Found {len(entities)} entities:")
+                                
+                                for entity in entities:
+                                    with st.expander(f"🔴 {entity['name']}"):
+                                        # Get connections
+                                        conn_result = session.run("""
+                                            MATCH (e:Entity)-[r]-(n)
+                                            WHERE id(e) = $id
+                                            RETURN type(r) as rel_type, labels(n) as labels, count(*) as count
+                                        """, id=entity['id'])
+                                        
+                                        connections = list(conn_result)
+                                        
+                                        if connections:
+                                            st.markdown("**Connections:**")
+                                            for conn in connections:
+                                                st.text(f"  • {conn['rel_type']} → {conn['labels'][0]}: {conn['count']}")
+                                        
+                                        # Visualize button
+                                        if st.button(f"Visualize {entity['name']}", key=f"viz_{entity['id']}"):
+                                            html = st.session_state.graph_visualizer.visualize_entity_graph(
+                                                entity_name=entity['name'],
+                                                max_depth=2
+                                            )
+                                            st.session_state.graph_visualizer.render_graph(html)
+                            else:
+                                st.info(f"No entities found matching '{entity_name}'")
+                                
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+                else:
+                    st.warning("Please enter an entity name")
+        
+        with stats_tab:
+            st.subheader("📈 Graph Statistics")
+            
+            try:
+                with st.session_state.neo4j_client.driver.session() as session:
+                    # Get counts
+                    stats = {}
+                    
+                    # Document count
+                    result = session.run("MATCH (d:Document) RETURN count(d) as count")
+                    stats['documents'] = result.single()['count']
+                    
+                    # Chunk count
+                    result = session.run("MATCH (c:Chunk) RETURN count(c) as count")
+                    stats['chunks'] = result.single()['count']
+                    
+                    # Entity count
+                    result = session.run("MATCH (e:Entity) RETURN count(e) as count")
+                    stats['entities'] = result.single()['count']
+                    
+                    # Relationship count
+                    result = session.run("MATCH ()-[r]->() RETURN count(r) as count")
+                    stats['relationships'] = result.single()['count']
+                    
+                    # Display stats
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Documents", stats['documents'])
+                    with col2:
+                        st.metric("Chunks", stats['chunks'])
+                    with col3:
+                        st.metric("Entities", stats['entities'])
+                    with col4:
+                        st.metric("Relationships", stats['relationships'])
+                    
+                    st.markdown("---")
+                    
+                    # Top entities
+                    st.markdown("**Top 10 Most Connected Entities:**")
+                    result = session.run("""
+                        MATCH (e:Entity)-[r]-()
+                        RETURN e.name as name, count(r) as connections
+                        ORDER BY connections DESC
+                        LIMIT 10
+                    """)
+                    
+                    top_entities = list(result)
+                    if top_entities:
+                        for i, entity in enumerate(top_entities, 1):
+                            st.text(f"{i}. {entity['name']}: {entity['connections']} connections")
+                    else:
+                        st.info("No entities found")
+                        
+            except Exception as e:
+                st.error(f"❌ Error fetching statistics: {str(e)}")
     
     elif selected == "Settings":
         st.title("⚙️ Settings")
