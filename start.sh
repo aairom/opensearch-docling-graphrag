@@ -61,16 +61,35 @@ echo "📦 Installing dependencies..."
 pip install -q --upgrade pip
 pip install -q -r requirements.txt
 
-# Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo -e "${RED}❌ Docker is not running. Please start Docker first.${NC}"
+# Detect container runtime (Docker or Podman)
+CONTAINER_CMD=""
+COMPOSE_CMD=""
+
+if command -v docker &> /dev/null && docker info > /dev/null 2>&1; then
+    CONTAINER_CMD="docker"
+    COMPOSE_CMD="docker-compose"
+    echo -e "${GREEN}✅ Using Docker${NC}"
+elif command -v podman &> /dev/null && podman info > /dev/null 2>&1; then
+    CONTAINER_CMD="podman"
+    COMPOSE_CMD="podman-compose"
+    echo -e "${GREEN}✅ Using Podman${NC}"
+    
+    # Check if podman-compose is installed
+    if ! command -v podman-compose &> /dev/null; then
+        echo -e "${YELLOW}⚠️  podman-compose not found. Installing...${NC}"
+        pip install podman-compose
+    fi
+else
+    echo -e "${RED}❌ Neither Docker nor Podman is running. Please start one of them first.${NC}"
+    echo "   For Podman: Make sure Podman Desktop is running and podman machine is started"
+    echo "   Run: podman machine start"
     exit 1
 fi
 
-# Start services with docker-compose
+# Start services with container runtime
 if [ -f "docker-compose.yml" ]; then
-    echo "🐳 Starting Docker services..."
-    docker-compose up -d
+    echo "🐳 Starting container services (OpenSearch, Neo4j)..."
+    $COMPOSE_CMD up -d
     
     # Wait for services to be ready
     echo "⏳ Waiting for services to be ready..."
@@ -141,6 +160,8 @@ if ps -p $STREAMLIT_PID > /dev/null; then
     echo -e "   ${GREEN}OpenSearch:${NC} http://localhost:9200"
     echo -e "   ${GREEN}Neo4j:${NC}      http://localhost:7474"
     echo -e "   ${GREEN}Ollama:${NC}     http://localhost:11434"
+    echo ""
+    echo -e "🔧 Container Runtime: ${GREEN}$CONTAINER_CMD${NC}"
     echo ""
     echo -e "📝 Logs:"
     echo -e "   ${GREEN}Application:${NC} tail -f logs/streamlit.log"

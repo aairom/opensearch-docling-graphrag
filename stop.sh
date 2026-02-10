@@ -34,13 +34,21 @@ else
     fi
 fi
 
-# Stop Docker services
-if [ -f "docker-compose.yml" ]; then
-    echo "🐳 Stopping Docker services..."
-    docker-compose down
-    echo -e "${GREEN}✅ Docker services stopped${NC}"
+# Detect container runtime and stop services
+COMPOSE_CMD=""
+
+if command -v docker &> /dev/null && docker info > /dev/null 2>&1; then
+    COMPOSE_CMD="docker-compose"
+elif command -v podman &> /dev/null && podman info > /dev/null 2>&1; then
+    COMPOSE_CMD="podman-compose"
+fi
+
+if [ ! -z "$COMPOSE_CMD" ] && [ -f "docker-compose.yml" ]; then
+    echo "🐳 Stopping container services..."
+    $COMPOSE_CMD down
+    echo -e "${GREEN}✅ Container services stopped${NC}"
 else
-    echo -e "${YELLOW}⚠️  docker-compose.yml not found. Skipping Docker services...${NC}"
+    echo -e "${YELLOW}⚠️  No container runtime found or docker-compose.yml missing. Skipping...${NC}"
 fi
 
 echo ""
