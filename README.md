@@ -62,7 +62,7 @@ graph TB
 
 ## 📋 Prerequisites
 
-- Python 3.11+
+- **Python 3.11, 3.12, or 3.13** (Python 3.14+ not yet supported by dependencies)
 - Docker & Docker Compose
 - Ollama with models installed:
   - `ibm/granite4:latest` (or your preferred LLM)

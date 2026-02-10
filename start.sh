@@ -24,10 +24,31 @@ fi
 echo "📁 Creating directories..."
 mkdir -p input output logs
 
+# Check Python version
+PYTHON_CMD=""
+for cmd in python3.11 python3.12 python3.13 python3; do
+    if command -v $cmd &> /dev/null; then
+        VERSION=$($cmd --version 2>&1 | awk '{print $2}')
+        MAJOR=$(echo $VERSION | cut -d. -f1)
+        MINOR=$(echo $VERSION | cut -d. -f2)
+        if [ "$MAJOR" -eq 3 ] && [ "$MINOR" -ge 11 ] && [ "$MINOR" -le 13 ]; then
+            PYTHON_CMD=$cmd
+            echo -e "${GREEN}✅ Found compatible Python: $VERSION${NC}"
+            break
+        fi
+    fi
+done
+
+if [ -z "$PYTHON_CMD" ]; then
+    echo -e "${RED}❌ Python 3.11-3.13 required. Found incompatible version.${NC}"
+    echo "   Please install Python 3.11, 3.12, or 3.13"
+    exit 1
+fi
+
 # Check if virtual environment exists
 if [ ! -d "venv" ]; then
     echo -e "${YELLOW}⚠️  Virtual environment not found. Creating...${NC}"
-    python3 -m venv venv
+    $PYTHON_CMD -m venv venv
     echo -e "${GREEN}✅ Virtual environment created${NC}"
 fi
 
