@@ -196,25 +196,31 @@ class Neo4jClient:
         Create a relationship between two nodes.
         
         Args:
-            from_node_id: Source node ID
-            to_node_id: Target node ID
+            from_node_id: Source node ID (or name for entities)
+            to_node_id: Target node ID (or name for entities)
             relationship_type: Type of relationship
             properties: Relationship properties
         """
         with self.driver.session() as session:
+            # Try to match by id first, then by name (for entities)
             query = f"""
-            MATCH (a {{id: $from_id}})
-            MATCH (b {{id: $to_id}})
+            MATCH (a)
+            WHERE a.id = $from_id OR a.name = $from_id
+            MATCH (b)
+            WHERE b.id = $to_id OR b.name = $to_id
             MERGE (a)-[r:{relationship_type}]->(b)
             SET r += $properties
             RETURN r
             """
-            session.run(
+            result = session.run(
                 query,
                 from_id=from_node_id,
                 to_id=to_node_id,
                 properties=properties or {}
             )
+            # Check if relationship was created
+            if not result.single():
+                logger.warning(f"Could not create relationship {relationship_type} from {from_node_id} to {to_node_id}")
     
     def find_related_documents(
         self,
