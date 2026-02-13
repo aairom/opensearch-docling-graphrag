@@ -1,0 +1,167 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: docling-api-service
+  namespace: docling-rag
+  labels:
+    app: docling-api
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: docling-api
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docling-api
+  namespace: docling-rag
+  labels:
+    app: docling-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: docling-api
+  template:
+    metadata:
+      labels:
+        app: docling-api
+    spec:
+      containers:
+      - name: api
+        image: docling-rag:latest
+        imagePullPolicy: IfNotPresent
+        command: ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: OLLAMA_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: docling-config
+              key: OLLAMA_BASE_URL
+        - name: OLLAMA_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: docling-config
+              key: OLLAMA_MODEL
+        - name: OLLAMA_EMBEDDING_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: docling-config
+              key: OLLAMA_EMBEDDING_MODEL
+        - name: OPENSEARCH_HOST
+          value: "opensearch-service"
+        - name: OPENSEARCH_PORT
+          value: "9200"
+        - name: OPENSEARCH_USER
+          valueFrom:
+            configMapKeyRef:
+              name: docling-config
+              key: OPENSEARCH_USER
+        - name: OPENSEARCH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: docling-secrets
+              key: OPENSEARCH_PASSWORD
+        - name: NEO4J_URI
+          value: "bolt://neo4j-service:7687"
+        - name: NEO4J_USER
+          valueFrom:
+            configMapKeyRef:
+              name: docling-config
+              key: NEO4J_USER
+        - name: NEO4J_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: docling-secrets
+              key: NEO4J_PASSWORD
+        - name: API_HOST
+          value: "0.0.0.0"
+        - name: API_PORT
+          value: "8000"
+        - name: API_WORKERS
+          value: "4"
+        - name: GPU_ENABLED
+          value: "false"
+        - name: CHUNK_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: docling-config
+              key: CHUNK_SIZE
+        - name: CHUNK_OVERLAP
+          valueFrom:
+            configMapKeyRef:
+              name: docling-config
+              key: CHUNK_OVERLAP
+        volumeMounts:
+        - name: input-volume
+          mountPath: /app/input
+        - name: output-volume
+          mountPath: /app/output
+        - name: logs-volume
+          mountPath: /app/logs
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: input-volume
+        emptyDir: {}
+      - name: output-volume
+        emptyDir: {}
+      - name: logs-volume
+        emptyDir: {}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: docling-api-hpa
+  namespace: docling-rag
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: docling-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+# Made with Bob

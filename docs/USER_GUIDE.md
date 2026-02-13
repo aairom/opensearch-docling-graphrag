@@ -449,4 +449,223 @@ What are the next steps?
 - **Entity** - Named item extracted from text (person, place, etc.)
 - **Graph** - Network of connected entities and documents
 - **RAG** - Retrieval-Augmented Generation
+
+## API Usage
+
+### REST API
+
+The system provides a comprehensive REST API for programmatic access.
+
+#### Using Python
+
+```python
+import requests
+
+# Base URL
+BASE_URL = "http://localhost:8000/api"
+
+# Upload and process a document
+with open('document.pdf', 'rb') as f:
+    response = requests.post(
+        f"{BASE_URL}/documents/upload",
+        files={'file': f}
+    )
+    result = response.json()
+    print(f"Document ID: {result['document_id']}")
+
+# Search documents
+response = requests.post(
+    f"{BASE_URL}/search",
+    json={
+        'query': 'What are the main findings?',
+        'top_k': 5
+    }
+)
+results = response.json()
+for result in results['results']:
+    print(f"Score: {result['score']}, Text: {result['text'][:100]}...")
+
+# Ask a question using RAG
+response = requests.post(
+    f"{BASE_URL}/rag/query",
+    json={
+        'question': 'Summarize the key points',
+        'top_k': 5
+    }
+)
+answer = response.json()
+print(f"Answer: {answer['answer']}")
+print(f"Sources: {len(answer['sources'])}")
+
+# Get graph statistics
+response = requests.get(f"{BASE_URL}/graph/stats")
+stats = response.json()
+print(f"Documents: {stats['total_documents']}")
+print(f"Entities: {stats['total_entities']}")
+```
+
+#### Using cURL
+
+```bash
+# Health check
+curl http://localhost:8000/api/health
+
+# Upload document
+curl -X POST http://localhost:8000/api/documents/upload \
+  -F "file=@document.pdf"
+
+# Search
+curl -X POST http://localhost:8000/api/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "main findings", "top_k": 5}'
+
+# RAG query
+curl -X POST http://localhost:8000/api/rag/query \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Summarize the document", "top_k": 5}'
+```
+
+### GraphQL API
+
+Access the GraphQL playground at `http://localhost:8000/api/graphql`
+
+#### Example Queries
+
+**Search Documents:**
+```graphql
+query {
+  search(input: {query: "main findings", topK: 5}) {
+    documentId
+    text
+    score
+  }
+}
+```
+
+**RAG Query:**
+```graphql
+query {
+  ragQuery(input: {question: "Summarize the document", topK: 5}) {
+    answer
+    sources {
+      documentId
+      text
+      score
+    }
+    processingTime
+  }
+}
+```
+
+**Graph Statistics:**
+```graphql
+query {
+  graphStats {
+    totalDocuments
+    totalChunks
+    totalEntities
+    totalRelationships
+  }
+}
+```
+
+**Entity Connections:**
+```graphql
+query {
+  entityConnections(input: {entityName: "John Smith", maxDepth: 2}) {
+    entityName
+    relatedEntity
+    relationshipType
+    distance
+  }
+}
+```
+
+### WebSocket API
+
+Real-time updates for document processing:
+
+```javascript
+const ws = new WebSocket('ws://localhost:8000/api/ws');
+
+ws.onopen = () => {
+  console.log('Connected to WebSocket');
+};
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  
+  switch(data.type) {
+    case 'document_processed':
+      console.log(`Document processed: ${data.file_name}`);
+      break;
+    case 'batch_progress':
+      console.log(`Batch progress: ${data.progress}%`);
+      break;
+    case 'batch_completed':
+      console.log('Batch processing completed');
+      break;
+  }
+};
+```
+
+### API Documentation
+
+- **Swagger UI**: http://localhost:8000/api/docs
+- **ReDoc**: http://localhost:8000/api/redoc
+- **GraphQL Playground**: http://localhost:8000/api/graphql
+
+For complete API reference, see [API.md](API.md)
+
+## GPU Acceleration
+
+### Enabling GPU Support
+
+1. **Check GPU Availability:**
+
+```bash
+# Check if GPU is available
+curl http://localhost:8000/api/config | jq '.gpu_available'
+```
+
+2. **Enable GPU in Configuration:**
+
+Edit `.env`:
+```bash
+GPU_ENABLED=true
+GPU_DEVICE_ID=0
+GPU_MEMORY_FRACTION=0.8
+```
+
+3. **Restart Services:**
+
+```bash
+./stop.sh
+./start.sh
+```
+
+### GPU Benefits
+
+- **Faster document processing**: 2-3x speedup
+- **Faster embedding generation**: 3-5x speedup
+- **Better batch processing**: Handle larger batches
+
+### GPU Requirements
+
+- NVIDIA GPU with CUDA support
+- CUDA 11.0 or higher
+- 4GB+ GPU memory recommended
+- PyTorch with CUDA support installed
+
+### Checking GPU Status
+
+```python
+import requests
+
+response = requests.get('http://localhost:8000/api/config')
+config = response.json()
+
+print(f"GPU Enabled: {config['gpu_enabled']}")
+print(f"GPU Available: {config['gpu_available']}")
+```
 - **Vector Search** - Similarity-based search using embeddings

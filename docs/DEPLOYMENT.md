@@ -589,4 +589,128 @@ kubectl rollout undo deployment/docling-app -n docling-rag
 kubectl rollout undo deployment/docling-app -n docling-rag --to-revision=2
 
 # Check rollout history
+
+## API Deployment
+
+### Docker Compose API Deployment
+
+The API service is included in the docker-compose setup:
+
+```bash
+# Start all services including API
+docker-compose up -d
+
+# View API logs
+docker-compose logs -f api
+
+# Access API
+# REST API: http://localhost:8000/api/docs
+# GraphQL: http://localhost:8000/api/graphql
+# WebSocket: ws://localhost:8000/api/ws
+```
+
+### Kubernetes API Deployment
+
+Deploy the API service to Kubernetes:
+
+```bash
+# Deploy API service
+kubectl apply -f k8s/api-deployment.yaml
+
+# Check API pods
+kubectl get pods -n docling-rag -l app=docling-api
+
+# Check API service
+kubectl get svc docling-api-service -n docling-rag
+
+# Port forward for local access
+kubectl port-forward -n docling-rag svc/docling-api-service 8000:8000
+```
+
+### API Configuration
+
+Configure the API via environment variables:
+
+```bash
+# API Settings
+API_HOST=0.0.0.0
+API_PORT=8000
+API_WORKERS=4
+
+# GPU Acceleration (Optional)
+GPU_ENABLED=false
+GPU_DEVICE_ID=0
+GPU_MEMORY_FRACTION=0.8
+```
+
+### API Health Checks
+
+```bash
+# Check API health
+curl http://localhost:8000/api/health
+
+# Check system configuration
+curl http://localhost:8000/api/config
+
+# View API documentation
+open http://localhost:8000/api/docs
+```
+
+### API Scaling
+
+Scale the API deployment:
+
+```bash
+# Manual scaling
+kubectl scale deployment docling-api -n docling-rag --replicas=5
+
+# Auto-scaling is configured via HPA
+kubectl get hpa docling-api-hpa -n docling-rag
+```
+
+### GPU-Enabled Deployment
+
+For GPU acceleration:
+
+1. **Update docker-compose.yml:**
+
+```yaml
+api:
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: 1
+            capabilities: [gpu]
+  environment:
+    - GPU_ENABLED=true
+    - GPU_DEVICE_ID=0
+```
+
+2. **Update Kubernetes deployment:**
+
+```yaml
+resources:
+  limits:
+    nvidia.com/gpu: 1
+env:
+- name: GPU_ENABLED
+  value: "true"
+```
+
+### API Monitoring
+
+Monitor API performance:
+
+```bash
+# View API metrics (if Prometheus is configured)
+kubectl port-forward -n monitoring svc/prometheus 9090:9090
+
+# View API logs
+kubectl logs -f -n docling-rag -l app=docling-api
+
+# Check API resource usage
+kubectl top pods -n docling-rag -l app=docling-api
+```
 kubectl rollout history deployment/docling-app -n docling-rag

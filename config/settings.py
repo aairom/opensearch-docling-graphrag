@@ -39,6 +39,16 @@ class Settings(BaseSettings):
     chunk_size: int = 512
     chunk_overlap: int = 50
     
+    # GPU Acceleration Configuration
+    gpu_enabled: bool = False
+    gpu_device_id: int = 0
+    gpu_memory_fraction: float = 0.8
+    
+    # API Configuration
+    api_host: str = "0.0.0.0"
+    api_port: int = 8000
+    api_workers: int = 4
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

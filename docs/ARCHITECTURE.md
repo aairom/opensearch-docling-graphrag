@@ -401,6 +401,90 @@ graph TB
     style ELK fill:#f3e5f5
 ```
 
+## API Architecture
+
+### REST API
+
+The system provides a comprehensive REST API built with FastAPI:
+
+```mermaid
+graph TB
+    subgraph "API Layer"
+        REST[REST Endpoints]
+        GQL[GraphQL Endpoint]
+        WS[WebSocket Endpoint]
+    end
+    
+    subgraph "Core Services"
+        DOC[Document Processing]
+        SEARCH[Search Service]
+        RAG[RAG Service]
+        GRAPH[Graph Service]
+    end
+    
+    subgraph "Data Layer"
+        OS[(OpenSearch)]
+        NEO[(Neo4j)]
+    end
+    
+    REST --> DOC
+    REST --> SEARCH
+    REST --> RAG
+    REST --> GRAPH
+    
+    GQL --> DOC
+    GQL --> SEARCH
+    GQL --> RAG
+    GQL --> GRAPH
+    
+    WS --> DOC
+    WS --> SEARCH
+    
+    DOC --> OS
+    DOC --> NEO
+    SEARCH --> OS
+    RAG --> OS
+    GRAPH --> NEO
+    
+    style REST fill:#e1f5ff
+    style GQL fill:#f3e5f5
+    style WS fill:#fff3e0
+```
+
+### API Endpoints
+
+**REST API (Port 8000)**
+- `POST /api/documents/upload` - Upload and process documents
+- `POST /api/documents/batch` - Batch process documents
+- `GET /api/documents/batch/{job_id}` - Get batch job status
+- `POST /api/search` - Vector search
+- `POST /api/rag/query` - RAG question answering
+- `GET /api/graph/stats` - Graph statistics
+- `POST /api/graph/connections` - Entity connections
+- `GET /api/health` - Health check
+- `GET /api/config` - System configuration
+
+**GraphQL API (Port 8000)**
+- `/api/graphql` - GraphQL endpoint with queries and mutations
+- Interactive GraphQL playground available
+
+**WebSocket API (Port 8000)**
+- `/api/ws` - Real-time updates for document processing
+
+### GPU Acceleration
+
+The system supports optional GPU acceleration for:
+- Document processing with Docling
+- Embedding generation
+- Large batch operations
+
+Configuration via environment variables:
+```bash
+GPU_ENABLED=true
+GPU_DEVICE_ID=0
+GPU_MEMORY_FRACTION=0.8
+```
+
 ## Future Enhancements
 
 1. **Multi-tenancy Support**
@@ -413,17 +497,12 @@ graph TB
    - Trend detection
    - Usage analytics
 
-3. **API Layer**
-   - REST API
-   - GraphQL API
-   - WebSocket support
-
-4. **Enhanced Security**
+3. **Enhanced Security**
    - OAuth2/OIDC integration
    - Fine-grained access control
    - Audit logging
 
-5. **Performance Improvements**
-   - GPU acceleration
+4. **Performance Improvements**
    - Distributed processing
    - Advanced caching strategies
+   - Query optimization

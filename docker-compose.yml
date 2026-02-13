@@ -74,7 +74,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # Application service
+  # Application service (Streamlit UI)
   app:
     build:
       context: .
@@ -91,12 +91,48 @@ services:
       - NEO4J_PASSWORD=password
       - APP_HOST=0.0.0.0
       - APP_PORT=8501
+      - GPU_ENABLED=false
     volumes:
       - ./input:/app/input
       - ./output:/app/output
       - ./logs:/app/logs
     ports:
       - "8501:8501"
+    networks:
+      - docling-network
+    depends_on:
+      opensearch:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # API service (REST + GraphQL + WebSocket)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: docling-api
+    command: python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 4
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OPENSEARCH_HOST=opensearch
+      - OPENSEARCH_PORT=9200
+      - OPENSEARCH_USER=admin
+      - OPENSEARCH_PASSWORD=Admin@123
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=password
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_WORKERS=4
+      - GPU_ENABLED=false
+    volumes:
+      - ./input:/app/input
+      - ./output:/app/output
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
     networks:
       - docling-network
     depends_on:
